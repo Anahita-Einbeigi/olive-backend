@@ -21,7 +21,7 @@ const app = express();
 
 // Tillåt frontend på localhost:3000 (ändra till din frontend URL vid deployment)
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'https://brilino.se'],
 }));
 
 app.use(express.json());
