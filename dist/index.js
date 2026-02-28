@@ -75,8 +75,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import nodemailer from 'nodemailer';
 import cors from 'cors';
+import { Resend } from 'resend';
 
 const app = express();
 
@@ -86,14 +86,19 @@ app.use(cors({
 
 app.use(express.json());
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Kontrollera miljövariabler säkert
+if (!process.env.RESEND_API_KEY) {
+  throw new Error("RESEND_API_KEY is missing in environment variables");
+}
 
+if (!process.env.CONTACT_EMAIL) {
+  throw new Error("CONTACT_EMAIL is missing in environment variables");
+}
+
+// Initiera Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Kontakt route
 app.post('/api/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -102,19 +107,24 @@ app.post('/api/contact', async (req, res) => {
   }
 
   try {
-    await transporter.sendMail({
-      from: process.env.SMTP_USER,
+    await resend.emails.send({
+      from: 'Brilino Kontakt <onboarding@resend.dev>',
       to: process.env.CONTACT_EMAIL,
       subject: `Nytt meddelande från ${name}`,
-      text: message,
-      html: `<p>${message}</p><p>Från: ${name} (${email})</p>`,
+      html: `
+        <h3>Nytt meddelande</h3>
+        <p><strong>Namn:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Meddelande:</strong></p>
+        <p>${message}</p>
+      `,
     });
 
-    res.status(200).json({ message: 'Mail skickat!' });
+    return res.status(200).json({ message: 'Mail skickat!' });
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Misslyckades att skicka mail.' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Misslyckades att skicka mail.' });
   }
 });
 
